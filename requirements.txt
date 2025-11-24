@@ -1,0 +1,19 @@
+# Core API framework
+fastapi>=0.100.0
+uvicorn[standard]>=0.20.0
+
+# File uploads via FastAPI (multipart/ form-data support)
+python-multipart>=0.0.6
+
+# OpenAI API (used for LLM processing)
+openai>=1.0.0
+
+# Environment variables
+python-dotenv>=1.0.0
+
+# Data processing (optional - only if needed)
+# pandas>=2.0.0
+# openpyxl>=3.1.0
+
+# AWS SDK (optional - currently disabled, but kept for future use)
+# boto3>=1.28.0
