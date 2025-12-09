@@ -963,16 +963,17 @@ async def get_vat_report_quarterly(user_id: str = Header(..., alias="X-User-ID")
     
     # Categorize transactions
     categories = {
-        "1a": {"name": "Sales Taxed at the Standard Rate (21%)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
-        "1b": {"name": "Sales Taxed at the Reduced Rate (9%)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
-        "1c": {"name": "Sales Taxed at 0% (EU and Export)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
-        "1e": {"name": "Exempt / out-of-scope supplies", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "1a": {"name": "Sales Taxed at Standard Rate (21%)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "1b": {"name": "Sales Taxed at Reduced Rate (9%)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "1c": {"name": "Sales Taxed at Other Rates (0%)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "1d": {"name": "Private Use of Business Assets", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "1e": {"name": "Sales Exempt from VAT", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "2a": {"name": "Reverse-Charge Supplies", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "3a": {"name": "Supplies of Goods to EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "3b": {"name": "Supplies of Services to EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
-        "3c": {"name": "Intra-EU B2C goods (distance/installation sales)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
-        "4a": {"name": "Purchases of Goods from EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
-        "4b": {"name": "Purchases of Services from EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "3c": {"name": "Installation/Distance Sales to Private Individuals (EU)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "4a": {"name": "Purchases of Goods From EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "4b": {"name": "Purchases of Services From EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "4c": {"name": "Purchases of Goods from Non-EU Countries (Imports)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "5a": {"name": "Domestic purchases with Dutch VAT", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "5b": {"name": "Input VAT on Domestic Purchases", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}}
@@ -1153,16 +1154,17 @@ async def get_vat_report_yearly(user_id: str = Header(..., alias="X-User-ID"), y
     
     # Categorize transactions
     categories = {
-        "1a": {"name": "Sales Taxed at the Standard Rate (21%)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
-        "1b": {"name": "Sales Taxed at the Reduced Rate (9%)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
-        "1c": {"name": "Sales Taxed at 0% (EU and Export)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
-        "1e": {"name": "Exempt / out-of-scope supplies", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "1a": {"name": "Sales Taxed at Standard Rate (21%)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "1b": {"name": "Sales Taxed at Reduced Rate (9%)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "1c": {"name": "Sales Taxed at Other Rates (0%)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "1d": {"name": "Private Use of Business Assets", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "1e": {"name": "Sales Exempt from VAT", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "2a": {"name": "Reverse-Charge Supplies", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "3a": {"name": "Supplies of Goods to EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "3b": {"name": "Supplies of Services to EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
-        "3c": {"name": "Intra-EU B2C goods (distance/installation sales)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
-        "4a": {"name": "Purchases of Goods from EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
-        "4b": {"name": "Purchases of Services from EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "3c": {"name": "Installation/Distance Sales to Private Individuals (EU)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "4a": {"name": "Purchases of Goods From EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "4b": {"name": "Purchases of Services From EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "4c": {"name": "Purchases of Goods from Non-EU Countries (Imports)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "5a": {"name": "Domestic purchases with Dutch VAT", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "5b": {"name": "Input VAT on Domestic Purchases", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}}
@@ -1405,16 +1407,17 @@ async def get_vat_report_monthly(user_id: str = Header(..., alias="X-User-ID"), 
     
     # Categorize transactions
     categories = {
-        "1a": {"name": "Sales Taxed at the Standard Rate (21%)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
-        "1b": {"name": "Sales Taxed at the Reduced Rate (9%)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
-        "1c": {"name": "Sales Taxed at 0% (EU and Export)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
-        "1e": {"name": "Exempt / out-of-scope supplies", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "1a": {"name": "Sales Taxed at Standard Rate (21%)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "1b": {"name": "Sales Taxed at Reduced Rate (9%)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "1c": {"name": "Sales Taxed at Other Rates (0%)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "1d": {"name": "Private Use of Business Assets", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "1e": {"name": "Sales Exempt from VAT", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "2a": {"name": "Reverse-Charge Supplies", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "3a": {"name": "Supplies of Goods to EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "3b": {"name": "Supplies of Services to EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
-        "3c": {"name": "Intra-EU B2C goods (distance/installation sales)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
-        "4a": {"name": "Purchases of Goods from EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
-        "4b": {"name": "Purchases of Services from EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "3c": {"name": "Installation/Distance Sales to Private Individuals (EU)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "4a": {"name": "Purchases of Goods From EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "4b": {"name": "Purchases of Services From EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "4c": {"name": "Purchases of Goods from Non-EU Countries (Imports)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "5a": {"name": "Domestic purchases with Dutch VAT", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "5b": {"name": "Input VAT on Domestic Purchases", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}}
@@ -1832,31 +1835,31 @@ async def get_dreport(user_id: str = Header(..., alias="X-User-ID"), year: str =
             "rows": [
                 {
                     "code": "1a",
-                    "description": "Supplies/services taxed at standard rate (High)",
+                    "description": "Sales Taxed at Standard Rate (21%)",
                     "net_amount": category_totals["1a"]["net_amount"],
                     "vat": category_totals["1a"]["vat"]
                 },
                 {
                     "code": "1b",
-                    "description": "Supplies/services taxed at reduced rate (Low)",
+                    "description": "Sales Taxed at Reduced Rate (9%)",
                     "net_amount": category_totals["1b"]["net_amount"],
                     "vat": category_totals["1b"]["vat"]
                 },
                 {
                     "code": "1c",
-                    "description": "Supplies/services taxed at other rates, except 0%",
+                    "description": "Sales Taxed at Other Rates (0%)",
                     "net_amount": category_totals["1c"]["net_amount"],
                     "vat": category_totals["1c"]["vat"]
                 },
                 {
                     "code": "1d",
-                    "description": "Private use",
+                    "description": "Private Use of Business Assets",
                     "net_amount": category_totals["1d"]["net_amount"],
                     "vat": category_totals["1d"]["vat"]
                 },
                 {
                     "code": "1e",
-                    "description": "Supplies/services taxed at 0% or not taxed",
+                    "description": "Sales Exempt from VAT",
                     "net_amount": category_totals["1e"]["net_amount"],
                     "vat": category_totals["1e"]["vat"]
                 }
@@ -1868,7 +1871,7 @@ async def get_dreport(user_id: str = Header(..., alias="X-User-ID"), year: str =
             "rows": [
                 {
                     "code": "2a",
-                    "description": "Supplies/services where VAT liability is shifted to you",
+                    "description": "Reverse-Charge Supplies",
                     "net_amount": category_totals["2a"]["net_amount"],
                     "vat": category_totals["2a"]["vat"]
                 }
@@ -1880,19 +1883,19 @@ async def get_dreport(user_id: str = Header(..., alias="X-User-ID"), year: str =
             "rows": [
                 {
                     "code": "3a",
-                    "description": "Supplies to countries outside the EU (Exports)",
+                    "description": "Supplies of Goods to EU Countries",
                     "net_amount": category_totals["3a"]["net_amount"],
                     "vat": category_totals["3a"]["vat"]
                 },
                 {
                     "code": "3b",
-                    "description": "Supplies to/in countries within the EU",
+                    "description": "Supplies of Services to EU Countries",
                     "net_amount": category_totals["3b"]["net_amount"],
                     "vat": category_totals["3b"]["vat"]
                 },
                 {
                     "code": "3c",
-                    "description": "Installation/distance sales within the EU",
+                    "description": "Installation/Distance Sales to Private Individuals (EU)",
                     "net_amount": category_totals["3c"]["net_amount"],
                     "vat": category_totals["3c"]["vat"]
                 }
@@ -1904,13 +1907,13 @@ async def get_dreport(user_id: str = Header(..., alias="X-User-ID"), year: str =
             "rows": [
                 {
                     "code": "4a",
-                    "description": "Supplies/services from countries outside the EU",
+                    "description": "Purchases of Goods From EU Countries",
                     "net_amount": category_totals["4a"]["net_amount"],
                     "vat": category_totals["4a"]["vat"]
                 },
                 {
                     "code": "4b",
-                    "description": "Supplies/services from countries within the EU",
+                    "description": "Purchases of Services From EU Countries",
                     "net_amount": category_totals["4b"]["net_amount"],
                     "vat": category_totals["4b"]["vat"]
                 }
