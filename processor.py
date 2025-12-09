@@ -171,15 +171,22 @@ def normalize_amount(euro_str):
         if euro_str is None:
             return 0.0
         
-        # If already a number, return it
-        if isinstance(euro_str, (int, float)):
+        # Handle NaN values (from Excel/CSV exports)
+        if isinstance(euro_str, float):
+            # Check if it's NaN (NaN != NaN is True)
+            if euro_str != euro_str:
+                return 0.0
+            return round(float(euro_str), 2)
+        
+        # If already a number (int), return it
+        if isinstance(euro_str, int):
             return round(float(euro_str), 2)
         
         # If string, clean and convert
         if isinstance(euro_str, str):
             # Remove euro sign and space, convert to float using '.' as decimal separator
             clean = euro_str.replace("€", "").replace(",", "").strip()
-            if not clean or clean == "":
+            if not clean or clean == "" or clean.lower() == "nan":
                 return 0.0
             return round(float(clean), 2)
         

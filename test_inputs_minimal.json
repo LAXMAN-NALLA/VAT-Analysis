@@ -1,0 +1,40 @@
+[
+  {
+    "date": "2025-09-17",
+    "type": "Sales",
+    "net_amount": 967.6,
+    "vat_amount": 203.19,
+    "vat_percentage": "21",
+    "description": "Premier Subscription Package",
+    "customer_name": "PAE NL B.V.",
+    "file_name": "24700492.pdf",
+    "VAT Category (NL) Code": "1a",
+    "VAT Category (NL) Description": "Sales taxed at the standard rate (21%)"
+  },
+  {
+    "date": "2025-09-25",
+    "type": "Purchase",
+    "net_amount": 4357.46,
+    "vat_amount": null,
+    "vat_percentage": "0",
+    "description": "SEPTEMBER SALES",
+    "vendor_name": "PAE Business Ltd",
+    "file_name": "Invoice_26411.pdf",
+    "VAT Category (NL) Code": "4a",
+    "VAT Category (NL) Description": "Purchases of goods from EU countries"
+  },
+  {
+    "date": "2025-09-20",
+    "type": "Sales",
+    "net_amount": -500.00,
+    "vat_amount": -105.00,
+    "vat_percentage": "21",
+    "description": "Credit Note - Return",
+    "customer_name": "Customer ABC",
+    "file_name": "credit_note_001.pdf",
+    "invoice_number": "CN-001",
+    "VAT Category (NL) Code": "1a",
+    "VAT Category (NL) Description": "Sales taxed at the standard rate (21%)"
+  }
+]
+

@@ -1,9 +1,9 @@
-from fastapi import FastAPI, Request, HTTPException, Header, UploadFile, File, Body
+from fastapi import FastAPI, HTTPException, Header, Body
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 import json
 from fastapi.middleware.cors import CORSMiddleware
-from processor import upload_pdf_to_user_folder, process_data, calculate_vat_amount, calculate_total_with_vat, validate_vat_calculation, get_vat_rate_by_category, calculate_vat_payable, process_json_invoices, get_user_company_details
+from processor import calculate_vat_amount, calculate_total_with_vat, validate_vat_calculation, get_vat_rate_by_category, calculate_vat_payable, get_user_company_details
 from collections import defaultdict
 from datetime import datetime
 # import boto3  # COMMENTED OUT - S3 integration disabled for now
@@ -73,116 +73,11 @@ def get_quarter_name(quarter):
     }
     return quarter_names.get(quarter, quarter)
 
-# ==================== USER INFO ROUTE ====================
-
-@app.get("/user-info")
-async def get_user_info(user_id: str = Header(..., alias="X-User-ID")):
-    """Get user's data information"""
-    try:
-        # In-memory storage
-        pdf_count = user_pdf_count.get(user_id, 0)
-        processed_years = list(user_vat_data.get(user_id, {}).keys())
-        
-        # ==================== COMMENTED OUT - S3 Integration ====================
-        # # Check if user has any data
-        # prefix = f"users/{user_id}/"
-        # existing_files = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
-        # 
-        # pdf_count = 0
-        # if "Contents" in existing_files:
-        #     for obj in existing_files["Contents"]:
-        #         if obj["Key"].endswith(".pdf"):
-        #             pdf_count += 1
-        # 
-        # # Check for existing results
-        # results_prefix = f"users/{user_id}/results/"
-        # results_files = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=results_prefix)
-        # 
-        # processed_years = []
-        # if "Contents" in results_files:
-        #     for obj in results_files["Contents"]:
-        #         if obj["Key"].endswith(".json") and "VATanalysis_" in obj["Key"]:
-        #             year = obj["Key"].split("VATanalysis_")[-1].split(".json")[0]
-        #             processed_years.append(year)
-        
-        return {
-            "user_id": user_id,
-            "pdf_count": pdf_count,
-            "processed_years": processed_years,
-            "max_pdfs": 20
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving user info: {str(e)}")
-
-# ==================== PDF UPLOAD ROUTE ====================
-
-from typing import List
-
-@app.post("/upload")
-async def upload_pdf(user_id: str = Header(..., alias="X-User-ID"), files: List[UploadFile] = File(...)):
-    """Upload PDF files for VAT analysis"""
-    if not user_id:
-        raise HTTPException(status_code=400, detail="Missing X-User-ID header")
-
-    # In-memory storage
-    pdf_count = user_pdf_count.get(user_id, 0)
-    
-    # ==================== COMMENTED OUT - S3 Integration ====================
-    # # ✅ Check how many PDFs already exist in user folder
-    # prefix = f"users/{user_id}/"
-    # existing_pdfs = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
-    # 
-    # pdf_count = 0
-    # if "Contents" in existing_pdfs:
-    #     for obj in existing_pdfs["Contents"]:
-    #         if obj["Key"].endswith(".pdf"):
-    #             pdf_count += 1
-
-    # ✅ First check new files count
-    if len(files) > 20:
-        raise HTTPException(status_code=400, detail="❌ You can only select up to 20 files at a time.")
-
-    # ✅ Then check total files count after upload
-    if pdf_count + len(files) > 20:
-        raise HTTPException(
-            status_code=400,
-            detail=f"❌ Uploading {len(files)} files would exceed your limit of 20 PDFs. You currently have {pdf_count} PDFs."
-        )
-
-    # ✅ Upload the files one by one
-    for file in files:
-        # upload_pdf_to_user_folder(user_id, file)  # COMMENTED OUT - S3 upload disabled
-        user_pdf_count[user_id] = user_pdf_count.get(user_id, 0) + 1  # Track PDF count in memory
-        log_user_event(user_id, "PDF Uploaded", {"filename": file.filename})
-
-    uploaded_files = [file.filename for file in files]
-
-    return {
-        "message": f"✅ Uploaded {len(files)} file(s) successfully.",
-        "files_uploaded": uploaded_files
-    }
-
-
-
-
-# ==================== VAT PROCESSING ROUTE ====================
-
-@app.post("/trigger")
-async def trigger(
-    user_id: str = Header(..., alias="X-User-ID"),
-    company_name: str = Header(None, alias="X-Company-Name"),
-    company_vat: str = Header(None, alias="X-Company-VAT")
-):
-    """Trigger VAT analysis processing for uploaded PDFs"""
-    if not user_id:
-        raise HTTPException(status_code=400, detail="Missing X-User-ID header")
-
-    result = process_data(user_id, company_name, company_vat)
-    log_user_event(user_id, "Triggered VAT Analysis", {
-        "company_name": company_name,
-        "company_vat": company_vat
-    })
-    return {"message": result}
+# ==================== REMOVED ENDPOINTS ====================
+# The following endpoints were removed as they are no longer needed:
+# - /user-info - User info can be derived from data
+# - /upload - PDF upload not needed (using JSON via /process-invoices)
+# - /trigger - VAT analysis trigger not needed (processing happens in /process-invoices)
 
 # ==================== PYDANTIC MODELS FOR API DOCS ====================
 
@@ -330,10 +225,10 @@ async def process_invoices_simple(
     invoices: List[Dict[str, Any]] = Body(..., description="Array of analyzed invoice data. Each invoice should have: date, type, net_amount, vat_amount, vat_category, etc.")
 ):
     """
-    Store analyzed invoice data directly (NEW SIMPLE APPROACH)
+    Store analyzed invoice data directly (UPDATED APPROACH - Uses provided NL VAT codes)
     
     **Input Format:**
-    Simple JSON array of analyzed invoices:
+    JSON array of analyzed invoices with Dutch VAT category codes:
     ```json
     [
       {
@@ -341,20 +236,26 @@ async def process_invoices_simple(
         "type": "Purchase",
         "net_amount": 4357.46,
         "vat_amount": null,
-        "vat_category": "Zero Rated",
         "vat_percentage": "0",
         "description": "SEPTEMBER SALES",
         "vendor_name": "PAE Business Ltd",
-        "file_name": "Invoice_26411.pdf"
+        "file_name": "Invoice_26411.pdf",
+        "VAT Category (NL) Code": "4a",
+        "VAT Category (NL) Description": "Purchases of goods from EU countries"
       },
       ...
     ]
     ```
     
+    **New Required Fields:**
+    - `VAT Category (NL) Code`: Dutch VAT return category code (e.g., "1a", "1b", "1c", "2a", "3a", "3b", "4a", "4b", "5b")
+    - `VAT Category (NL) Description`: Human-readable description of the VAT category
+    
+    **Backward Compatibility:**
+    If NL codes are not provided, the system will attempt to map from old `vat_category` field.
+    
     **Required Header:**
     - `X-User-ID`: Your user identifier
-    
-    **No processing needed** - data is already analyzed and ready to use!
     """
     if not user_id:
         raise HTTPException(status_code=400, detail="Missing X-User-ID header")
@@ -375,17 +276,28 @@ async def process_invoices_simple(
         # Process each invoice
         for invoice_item in invoices:
             try:
-                # Extract basic info
-                date_str = invoice_item.get("date", "")
-                invoice_type = invoice_item.get("type", "").lower()
-                file_name = invoice_item.get("file_name", "")
+                # Helper function to get value with multiple field name variations
+                def get_field_value(*field_names, default=None):
+                    for field_name in field_names:
+                        value = invoice_item.get(field_name)
+                        if value is not None and value != "":
+                            # Handle NaN values from Excel/CSV exports
+                            if isinstance(value, float) and (value != value):  # NaN check
+                                return default
+                            return value
+                    return default
+                
+                # Extract basic info - handle multiple field name formats
+                date_str = get_field_value("date", "Date", default="")
+                invoice_type = str(get_field_value("type", "Type", default="")).lower()
+                file_name = get_field_value("file_name", "File Name", "file_name", default="")
                 
                 # Extract year from date
                 year = "unknown"
                 if date_str:
                     try:
                         # Try common date formats
-                        for fmt in ["%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%Y/%m/%d"]:
+                        for fmt in ["%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%Y/%m/%d", "%m-%d-%Y", "%m/%d/%Y"]:
                             try:
                                 dt = datetime.strptime(str(date_str).strip(), fmt)
                                 year = str(dt.year)
@@ -401,7 +313,7 @@ async def process_invoices_simple(
                 
                 # Extract invoice number for duplicate checking
                 # Try to get actual invoice number from input, fallback to file_name if not provided
-                input_invoice_number = invoice_item.get("invoice_number") or invoice_item.get("invoice_no")
+                input_invoice_number = get_field_value("invoice_number", "invoice_no", "Invoice Number", "Invoice No")
                 file_name_base = file_name.replace(".pdf", "")
                 
                 # Check if already exists (by file_name/source_file OR invoice_number)
@@ -424,15 +336,58 @@ async def process_invoices_simple(
                 # Map transaction type
                 transaction_type = "sale" if invoice_type in ["sales", "sale"] else "purchase"
                 
-                # Map VAT category to code
-                vat_category_str = invoice_item.get("vat_category", "")
-                vat_percentage = invoice_item.get("vat_percentage", "0")
-                vat_category_code = map_vat_category_simple(vat_category_str, transaction_type, vat_percentage)
+                # Get VAT category code and description - NEW APPROACH: Use provided NL codes directly
+                vat_category_code = get_field_value(
+                    "VAT Category (NL) Code", 
+                    "vat_category_nl_code", 
+                    "vat_category_code",
+                    "VAT Category Code",
+                    default=""
+                )
+                vat_category_description = get_field_value(
+                    "VAT Category (NL) Description",
+                    "vat_category_nl_description",
+                    "vat_category_description", 
+                    "VAT Category Description",
+                    default=""
+                )
                 
-                # Extract amounts
-                net_amount = normalize_amount(invoice_item.get("net_amount", 0))
-                vat_amount = normalize_amount(invoice_item.get("vat_amount", 0)) if invoice_item.get("vat_amount") is not None else 0.0
-                gross_amount = normalize_amount(invoice_item.get("gross_amount", 0))
+                # Fallback: If NL code not provided, try to map from old format (backward compatibility)
+                if not vat_category_code:
+                    vat_category_str = get_field_value("vat_category", "VAT Category", default="")
+                    vat_percentage_raw = get_field_value("vat_percentage", "VAT %", "VAT Percentage", default="0")
+                    # Clean VAT percentage (remove % symbol if present)
+                    if isinstance(vat_percentage_raw, str):
+                        vat_percentage = vat_percentage_raw.replace("%", "").strip()
+                    else:
+                        vat_percentage = str(vat_percentage_raw)
+                    # Get country for country-based classification
+                    country = get_field_value("country", "Country", default="")
+                    vat_category_code = map_vat_category_simple(vat_category_str, transaction_type, vat_percentage, country)
+                    # If still no description, use the old category string
+                    if not vat_category_description:
+                        vat_category_description = vat_category_str
+                
+                # Get VAT percentage for display
+                vat_percentage_raw = get_field_value("vat_percentage", "VAT %", "VAT Percentage", default="0")
+                if isinstance(vat_percentage_raw, str):
+                    vat_percentage = vat_percentage_raw.replace("%", "").strip()
+                else:
+                    vat_percentage = str(vat_percentage_raw)
+                
+                # Extract amounts - handle multiple field name formats and NaN values
+                net_amount_raw = get_field_value("net_amount", "Net Amount", default=0)
+                vat_amount_raw = get_field_value("vat_amount", "VAT Amount", default=None)
+                gross_amount_raw = get_field_value("gross_amount", "Gross Amount", default=0)
+                
+                # Normalize amounts (handle NaN)
+                net_amount = normalize_amount(net_amount_raw)
+                # Handle NaN for VAT amount - if NaN or None, set to 0
+                if vat_amount_raw is None or (isinstance(vat_amount_raw, float) and (vat_amount_raw != vat_amount_raw)):  # NaN check
+                    vat_amount = 0.0
+                else:
+                    vat_amount = normalize_amount(vat_amount_raw)
+                gross_amount = normalize_amount(gross_amount_raw)
                 
                 # Extract vendor/customer name - handle both field name formats
                 # For purchases: use vendor_name (the supplier)
@@ -440,32 +395,27 @@ async def process_invoices_simple(
                 if transaction_type == "purchase":
                     # Try multiple field name variations for vendor
                     invoice_to = (
-                        invoice_item.get("vendor_name") or 
-                        invoice_item.get("Vendor Name") or 
-                        invoice_item.get("vendor") or 
-                        ""
+                        get_field_value("vendor_name", "Vendor Name", "vendor", default="")
                     )
                 else:  # sale
                     # Try multiple field name variations for customer
                     invoice_to = (
-                        invoice_item.get("customer_name") or 
-                        invoice_item.get("Customer Name") or 
-                        invoice_item.get("customer") or 
-                        ""
+                        get_field_value("customer_name", "Customer Name", "customer", default="")
                     )
                 
                 # Build invoice structure
                 invoice = {
-                    "invoice_no": invoice_item.get("invoice_number") or invoice_item.get("invoice_no") or file_name.replace(".pdf", ""),
+                    "invoice_no": input_invoice_number or file_name.replace(".pdf", ""),
                     "date": date_str,
                     "invoice_to": invoice_to,
-                    "country": invoice_item.get("country", ""),
-                    "vat_no": invoice_item.get("vendor_vat_id") if transaction_type == "purchase" else invoice_item.get("customer_vat_id", ""),
+                    "country": get_field_value("country", "Country", default=""),
+                    "vat_no": get_field_value("vendor_vat_id", "Vendor VAT ID") if transaction_type == "purchase" else get_field_value("customer_vat_id", "Customer VAT ID", default=""),
                     "transactions": [{
-                        "description": invoice_item.get("description", ""),
+                        "description": get_field_value("description", "Description", default=""),
                         "amount_pre_vat": net_amount,
                         "vat_percentage": f"{vat_percentage}%",
-                        "vat_category": vat_category_code
+                        "vat_category": vat_category_code,
+                        "vat_category_description": vat_category_description
                     }],
                     "subtotal": net_amount,
                     "vat_amount": vat_amount,
@@ -498,14 +448,26 @@ async def process_invoices_simple(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing invoices: {str(e)}")
 
-def map_vat_category_simple(vat_category_str, transaction_type, vat_percentage):
+# Jurisdiction Constants
+DOMESTIC_COUNTRY = "NL"
+
+# List of EU Countries (excluding NL)
+EU_COUNTRIES = [
+    "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", 
+    "HU", "IE", "IT", "LV", "LT", "LU", "MT", "PL", "PT", "RO", "SK", "SI", 
+    "ES", "SE"
+]
+# Note: GB (United Kingdom) is NON-EU.
+
+def map_vat_category_simple(vat_category_str, transaction_type, vat_percentage, country=""):
     """
-    Multi-Field VAT Category Mapping Logic
+    Multi-Field VAT Category Mapping Logic with Country-Based Classification
     
     Priority Order:
     1. Check Category (vat_category string)
     2. Check Type (Sales or Purchase)
     3. Check Rate (vat_percentage) - CRUCIAL for "Standard VAT" to resolve 21% vs 9%
+    4. Check Country (for 0% transactions) - NEW: Distinguishes EU/Non-EU/NL
     
     This follows the exact logic table:
     - "Standard VAT" + Sales + 21% → 1a
@@ -513,8 +475,11 @@ def map_vat_category_simple(vat_category_str, transaction_type, vat_percentage):
     - "Standard VAT" + Purchase + Any% → 5b
     - "Reduced Rate" + Sales → 1b
     - "Reduced Rate" + Purchase → 5b
-    - "Zero Rated" + Sales → 1c
-    - "Zero Rated" + Purchase → 4a
+    - "Zero Rated" + Sales + 0% + NL → 1e
+    - "Zero Rated" + Sales + 0% + EU → 3b
+    - "Zero Rated" + Sales + 0% + Non-EU → 3a
+    - "Zero Rated" + Purchase + 0% + EU → 4b
+    - "Zero Rated" + Purchase + 0% + Non-EU → 4a
     - "EU Goods" + Sales → 3a
     - "EU Goods" + Purchase → 4a
     - "EU Services" + Sales → 3b
@@ -526,6 +491,7 @@ def map_vat_category_simple(vat_category_str, transaction_type, vat_percentage):
     category = str(vat_category_str).strip() if vat_category_str else ""
     category_lower = category.lower()
     tx_type = str(transaction_type).strip().lower()
+    country_upper = str(country).strip().upper() if country else ""
     
     # Parse percentage (handle string "21" or "21%" to float 21.0)
     percentage_str = str(vat_percentage).replace("%", "").strip()
@@ -553,12 +519,34 @@ def map_vat_category_simple(vat_category_str, transaction_type, vat_percentage):
         elif tx_type == "purchase":
             return "5b"  # Alternative label for domestic input VAT
     
-    # --- LOGIC FOR ZERO RATED / EU ---
+    # --- LOGIC FOR ZERO RATED / EU (WITH COUNTRY-BASED CLASSIFICATION) ---
     if "zero rated" in category_lower or "zero-rated" in category_lower:
         if tx_type == "sale" or tx_type == "sales":
-            return "1c"  # General Exports / Zero Rated sales
+            # For Sales with 0% VAT, check country to determine correct code
+            if percentage == 0:
+                if country_upper == DOMESTIC_COUNTRY:
+                    return "1e"  # Domestic 0% / Exempt (NL customer)
+                elif country_upper in EU_COUNTRIES:
+                    return "3b"  # Intra-Community Supply (EU customer)
+                elif country_upper and country_upper not in EU_COUNTRIES:
+                    return "3a"  # Export to Non-EU (Non-EU customer)
+                else:
+                    # No country info - default to 1c (general zero-rated)
+                    return "1c"  # General Exports / Zero Rated sales
+            else:
+                return "1c"  # Non-zero percentage with zero-rated category (shouldn't happen, but fallback)
         elif tx_type == "purchase":
-            return "4a"  # Assumes EU Goods Purchase
+            # For Purchases with 0% VAT, check country to determine correct code
+            if percentage == 0:
+                if country_upper in EU_COUNTRIES:
+                    return "4b"  # Services/Goods from EU
+                elif country_upper and country_upper not in EU_COUNTRIES:
+                    return "4a"  # Services/Goods from Non-EU
+                else:
+                    # No country info - default to 4a (assumes EU Goods Purchase)
+                    return "4a"  # Assumes EU Goods Purchase
+            else:
+                return "4a"  # Non-zero percentage with zero-rated category (shouldn't happen, but fallback)
     
     if "eu goods" in category_lower:
         if tx_type == "sale" or tx_type == "sales":
@@ -587,46 +575,40 @@ def map_vat_category_simple(vat_category_str, transaction_type, vat_percentage):
         return "4c"  # Non-EU Import
     
     # --- FALLBACK LOGIC (if category not recognized) ---
-    # Default based on transaction type and VAT percentage
+    # Default based on transaction type, VAT percentage, and country
     if tx_type == "sale" or tx_type == "sales":
         if percentage == 21:
             return "1a"
         elif percentage == 9:
             return "1b"
         elif percentage == 0:
-            return "1c"
+            # For 0% sales, check country in fallback too
+            if country_upper == DOMESTIC_COUNTRY:
+                return "1e"  # Domestic 0% / Exempt
+            elif country_upper in EU_COUNTRIES:
+                return "3b"  # Intra-Community Supply
+            elif country_upper and country_upper not in EU_COUNTRIES:
+                return "3a"  # Export to Non-EU
+            else:
+                return "1c"  # Default zero-rated sales
         else:
             return "1a"  # Default to standard rate
     elif tx_type == "purchase":
         if percentage == 0:
-            return "2a"  # Default to reverse charge for zero-rated purchases
+            # For 0% purchases, check country in fallback too
+            if country_upper in EU_COUNTRIES:
+                return "4b"  # Services/Goods from EU
+            elif country_upper and country_upper not in EU_COUNTRIES:
+                return "4a"  # Services/Goods from Non-EU
+            else:
+                return "2a"  # Default to reverse charge for zero-rated purchases (no country info)
         else:
             return "5b"  # Default to domestic input VAT
     
     # Final fallback
     return "5b"  # Default to domestic input VAT
 
-# ==================== COMMENTED OUT - OLD PROCESSING APPROACH ====================
-# @app.post("/process-invoices", response_model=Dict[str, Any])
-# async def process_invoices_json(
-#     user_id: str = Header(..., alias="X-User-ID"),
-#     invoice_data: InvoiceProcessingRequest = Body(..., description="Invoice data in standard format. Use the form below or send raw JSON in 'Try it out'.")
-# ):
-#     """
-#     Process invoices from JSON format (OLD APPROACH - COMMENTED OUT)
-#     """
-#     # ... old code commented out ...
-
-# ==================== COMMENTED OUT - OLD PROCESSING APPROACH ====================
-# @app.post("/process-invoices-raw")
-# async def process_invoices_json_raw(
-#     request: Request,
-#     user_id: str = Header(..., alias="X-User-ID")
-# ):
-#     """
-#     OLD APPROACH - Process invoices from raw JSON (COMMENTED OUT)
-#     """
-#     # ... old code commented out ...
+# ==================== HELPER FUNCTIONS ====================
 
 def parse_multiple_json_objects(text):
     """
@@ -677,142 +659,10 @@ def parse_multiple_json_objects(text):
     
     return objects
 
-# ==================== VAT SUMMARY ROUTE ====================
-
-@app.get("/vat-summary")
-async def get_vat_summary(user_id: str = Header(..., alias="X-User-ID"), year: str = ""):
-    """Get VAT summary for a specific year"""
-    if not user_id:
-        raise HTTPException(status_code=400, detail="Missing X-User-ID header")
-
-    if not year:
-        year = str(datetime.now().year)
-
-    # In-memory storage
-    try:
-        data = user_vat_data.get(user_id, {}).get(year, {"invoices": []})
-        if not isinstance(data, dict) or "invoices" not in data:
-            data = {"invoices": []}
-    except:
-        return {
-            "monthly_data": [], "total_vat": 0, "total_amount": 0, "transactions": []
-        }
-    
-    # ==================== COMMENTED OUT - S3 Integration ====================
-    # json_key = f"users/{user_id}/results/VATanalysis_{year}.json"
-    # try:
-    #     obj = s3_client.get_object(Bucket=bucket_name, Key=json_key)
-    #     data = json.loads(obj['Body'].read().decode('utf-8'))
-    # except s3_client.exceptions.NoSuchKey:
-    #     return {
-    #         "monthly_data": [], "total_vat": 0, "total_amount": 0, "transactions": []
-    #     }
-
-    monthly_vat = defaultdict(lambda: {"Domestic VAT": 0.0, "Intra-EU VAT": 0.0, "Import VAT": 0.0})
-    quarterly_vat = defaultdict(lambda: {"Domestic VAT": 0.0, "Intra-EU VAT": 0.0, "Import VAT": 0.0})
-    total_vat = 0.0
-    total_amt = 0.0
-    transactions = []
-
-    for invoice in data.get("invoices", []):
-        dt = try_parse_date(invoice.get("date", ""))
-        if not dt: continue
-        month = dt.strftime("%b")
-        quarter = get_quarter_from_month(month)
-        vat = normalize_amount(invoice.get("vat_amount", "0"))
-        total = normalize_amount(invoice.get("total_amount", "0"))
-        transaction_type = invoice.get("transaction_type", "sale")
-        
-        # Categorize VAT based on transaction type
-        if transaction_type == "sale":
-            # VAT collected from sales
-            monthly_vat[month]["Domestic VAT"] += vat
-            quarterly_vat[quarter]["Domestic VAT"] += vat
-        else:
-            # VAT paid on purchases (input VAT)
-            monthly_vat[month]["Input VAT"] = monthly_vat[month].get("Input VAT", 0.0) + vat
-            quarterly_vat[quarter]["Input VAT"] = quarterly_vat[quarter].get("Input VAT", 0.0) + vat
-        
-        total_vat += vat
-        total_amt += total
-        for tx in invoice.get("transactions", []):
-            transactions.append({
-                "invoice_no": invoice.get("invoice_no"),
-                "date": invoice.get("date"),
-                "description": tx.get("description"),
-                "amount_pre_vat": tx.get("amount_pre_vat"),
-                "vat_percentage": tx.get("vat_percentage"),
-                "vat_category": tx.get("vat_category", "N/A"),
-                "country": invoice.get("country", "N/A"),
-                "transaction_type": transaction_type
-            })
-
-    month_order = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    monthly_data = [{ "month": m, **monthly_vat[m] } for m in month_order if m in monthly_vat]
-
-    # Prepare quarterly data
-    quarter_order = ['Q1', 'Q2', 'Q3', 'Q4']
-    quarterly_data = []
-    for quarter in quarter_order:
-        if quarter in quarterly_vat:
-            quarterly_data.append({
-                "quarter": quarter,
-                "quarter_name": get_quarter_name(quarter),
-                **quarterly_vat[quarter]
-            })
-
-    return {
-        "monthly_data": monthly_data,
-        "quarterly_data": quarterly_data,
-        "total_vat": round(total_vat, 2),
-        "total_amount": round(total_amt, 2),
-        "transactions": transactions
-    }
-
-
-# ===================== transactions
-
-@app.get("/transactions")
-async def get_transactions(user_id: str = Header(..., alias="X-User-ID"), year: str = ""):
-    """Get detailed transactions for a specific year"""
-    if not user_id:
-        raise HTTPException(status_code=400, detail="Missing X-User-ID header")
-
-    if not year:
-        year = str(datetime.now().year)
-
-    # In-memory storage
-    try:
-        data = user_vat_data.get(user_id, {}).get(year, {"invoices": []})
-        if not isinstance(data, dict) or "invoices" not in data:
-            data = {"invoices": []}
-    except:
-        return {"transactions": []}
-    
-    # ==================== COMMENTED OUT - S3 Integration ====================
-    # json_key = f"users/{user_id}/results/VATanalysis_{year}.json"
-    # try:
-    #     obj = s3_client.get_object(Bucket=bucket_name, Key=json_key)
-    #     data = json.loads(obj['Body'].read().decode('utf-8'))
-    # except s3_client.exceptions.NoSuchKey:
-    #     return {"transactions": []}
-
-    transactions = []
-    for invoice in data.get("invoices", []):
-        for txn in invoice.get("transactions", []):
-            transactions.append({
-                "invoice_no": invoice.get("invoice_no"),
-                "date": invoice.get("date"),
-                "description": txn.get("description"),
-                "amount_pre_vat": txn.get("amount_pre_vat"),
-                "vat_percentage": txn.get("vat_percentage"),
-                "vat_category": txn.get("vat_category", "N/A"),
-                "country": invoice.get("country", "N/A"),
-                "transaction_type": invoice.get("transaction_type", "sale")
-            })
-
-    return {"transactions": transactions}
+# ==================== REMOVED ENDPOINTS ====================
+# The following endpoints were removed as they are redundant:
+# - /vat-summary - Redundant (use /vat-report-quarterly, /vat-report-monthly, or /vat-report-yearly instead)
+# - /transactions - Redundant (transactions are included in all report endpoints)
 
 
 # ==================== COMPANY DETAILS ROUTE ====================
@@ -907,84 +757,8 @@ async def get_company_details(user_id: str = Header(..., alias="X-User-ID")):
     #     }
 
 
-# ==================== QUARTERLY VAT SUMMARY ROUTE ====================
-
-@app.get("/vat-quarterly")
-async def get_vat_quarterly(user_id: str = Header(..., alias="X-User-ID"), year: str = ""):
-    """Get quarterly VAT summary for a specific year"""
-    if not user_id:
-        raise HTTPException(status_code=400, detail="Missing X-User-ID header")
-
-    if not year:
-        year = str(datetime.now().year)
-
-    # In-memory storage
-    try:
-        data = user_vat_data.get(user_id, {}).get(year, {"invoices": []})
-        if not isinstance(data, dict) or "invoices" not in data:
-            data = {"invoices": []}
-    except:
-        return {
-            "quarterly_data": [], 
-            "total_vat": 0, 
-            "total_amount": 0, 
-            "year": year
-        }
-    
-    # ==================== COMMENTED OUT - S3 Integration ====================
-    # json_key = f"users/{user_id}/results/VATanalysis_{year}.json"
-    # try:
-    #     obj = s3_client.get_object(Bucket=bucket_name, Key=json_key)
-    #     data = json.loads(obj['Body'].read().decode('utf-8'))
-    # except s3_client.exceptions.NoSuchKey:
-    #     return {
-    #         "quarterly_data": [], 
-    #         "total_vat": 0, 
-    #         "total_amount": 0, 
-    #         "year": year
-    #     }
-
-    quarterly_vat = defaultdict(lambda: {"Domestic VAT": 0.0, "Intra-EU VAT": 0.0, "Import VAT": 0.0})
-    total_vat = 0.0
-    total_amt = 0.0
-
-    for invoice in data.get("invoices", []):
-        dt = try_parse_date(invoice.get("date", ""))
-        if not dt: continue
-        month = dt.strftime("%b")
-        quarter = get_quarter_from_month(month)
-        vat = normalize_amount(invoice.get("vat_amount", "0"))
-        total = normalize_amount(invoice.get("total_amount", "0"))
-        transaction_type = invoice.get("transaction_type", "sale")
-        
-        # Categorize VAT based on transaction type
-        if transaction_type == "sale":
-            # VAT collected from sales
-            quarterly_vat[quarter]["Domestic VAT"] += vat
-        else:
-            # VAT paid on purchases (input VAT)
-            quarterly_vat[quarter]["Input VAT"] = quarterly_vat[quarter].get("Input VAT", 0.0) + vat
-        
-        total_vat += vat
-        total_amt += total
-
-    # Prepare quarterly data with proper ordering
-    quarter_order = ['Q1', 'Q2', 'Q3', 'Q4']
-    quarterly_data = []
-    for quarter in quarter_order:
-        if quarter in quarterly_vat:
-            quarterly_data.append({
-                "quarter": quarter,
-                "quarter_name": get_quarter_name(quarter),
-                **quarterly_vat[quarter]
-            })
-
-    return {
-        "year": year,
-        "quarterly_data": quarterly_data,
-        "total_vat": round(total_vat, 2),
-        "total_amount": round(total_amt, 2)
-    }
+# ==================== REMOVED ENDPOINT ====================
+# /vat-quarterly - Removed as redundant (use /vat-report-quarterly instead)
 
 
 # ===============================
@@ -1192,12 +966,15 @@ async def get_vat_report_quarterly(user_id: str = Header(..., alias="X-User-ID")
         "1a": {"name": "Sales Taxed at the Standard Rate (21%)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "1b": {"name": "Sales Taxed at the Reduced Rate (9%)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "1c": {"name": "Sales Taxed at 0% (EU and Export)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "1e": {"name": "Exempt / out-of-scope supplies", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "2a": {"name": "Reverse-Charge Supplies", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "3a": {"name": "Supplies of Goods to EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "3b": {"name": "Supplies of Services to EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "3c": {"name": "Intra-EU B2C goods (distance/installation sales)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "4a": {"name": "Purchases of Goods from EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "4b": {"name": "Purchases of Services from EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "4c": {"name": "Purchases of Goods from Non-EU Countries (Imports)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "5a": {"name": "Domestic purchases with Dutch VAT", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "5b": {"name": "Input VAT on Domestic Purchases", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}}
     }
     
@@ -1287,7 +1064,9 @@ async def get_vat_report_quarterly(user_id: str = Header(..., alias="X-User-ID")
                 "description": description,
                 "net_amount": round(amount_pre_vat, 2),
                 "vat_percentage": vat_percentage,
-                "vat_amount": vat_amount
+                "vat_amount": vat_amount,
+                "vat_category": vat_category,
+                "vat_category_description": tx.get("vat_category_description", "")
             }
             
             # Add vendor_name for purchases, customer_name for sales (only if not empty)
@@ -1377,12 +1156,15 @@ async def get_vat_report_yearly(user_id: str = Header(..., alias="X-User-ID"), y
         "1a": {"name": "Sales Taxed at the Standard Rate (21%)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "1b": {"name": "Sales Taxed at the Reduced Rate (9%)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "1c": {"name": "Sales Taxed at 0% (EU and Export)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "1e": {"name": "Exempt / out-of-scope supplies", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "2a": {"name": "Reverse-Charge Supplies", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "3a": {"name": "Supplies of Goods to EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "3b": {"name": "Supplies of Services to EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "3c": {"name": "Intra-EU B2C goods (distance/installation sales)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "4a": {"name": "Purchases of Goods from EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "4b": {"name": "Purchases of Services from EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "4c": {"name": "Purchases of Goods from Non-EU Countries (Imports)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "5a": {"name": "Domestic purchases with Dutch VAT", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "5b": {"name": "Input VAT on Domestic Purchases", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}}
     }
     
@@ -1626,12 +1408,15 @@ async def get_vat_report_monthly(user_id: str = Header(..., alias="X-User-ID"), 
         "1a": {"name": "Sales Taxed at the Standard Rate (21%)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "1b": {"name": "Sales Taxed at the Reduced Rate (9%)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "1c": {"name": "Sales Taxed at 0% (EU and Export)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "1e": {"name": "Exempt / out-of-scope supplies", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "2a": {"name": "Reverse-Charge Supplies", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "3a": {"name": "Supplies of Goods to EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "3b": {"name": "Supplies of Services to EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "3c": {"name": "Intra-EU B2C goods (distance/installation sales)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "4a": {"name": "Purchases of Goods from EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "4b": {"name": "Purchases of Services from EU Countries", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "4c": {"name": "Purchases of Goods from Non-EU Countries (Imports)", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
+        "5a": {"name": "Domestic purchases with Dutch VAT", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}},
         "5b": {"name": "Input VAT on Domestic Purchases", "transactions": [], "totals": {"net": 0.0, "vat": 0.0}}
     }
     
@@ -1721,7 +1506,9 @@ async def get_vat_report_monthly(user_id: str = Header(..., alias="X-User-ID"), 
                 "description": description,
                 "net_amount": round(amount_pre_vat, 2),
                 "vat_percentage": vat_percentage,
-                "vat_amount": vat_amount
+                "vat_amount": vat_amount,
+                "vat_category": vat_category,
+                "vat_category_description": tx.get("vat_category_description", "")
             }
             
             # Add vendor_name for purchases, customer_name for sales (only if not empty)
@@ -1800,6 +1587,399 @@ async def clear_user_data(user_id: str = Header(..., alias="X-User-ID")):
             "company_details": True,
             "pdf_count": True
         }
+    }
+
+@app.get("/dreport")
+async def get_dreport(user_id: str = Header(..., alias="X-User-ID"), year: str = "", quarter: str = ""):
+    """
+    Generate VAT return report in Dutch tax authority format (Dreport)
+    
+    This endpoint generates a structured VAT return report with sections and rows
+    matching the Dutch tax authority format.
+    
+    Query Parameters:
+    - year: Year (e.g., "2025")
+    - quarter: Quarter (e.g., "Q1", "Q2", "Q3", "Q4")
+    
+    Returns:
+    - report_meta: Report metadata (company info, period, etc.)
+    - sections: Array of sections with rows containing VAT category data
+    """
+    if not user_id:
+        raise HTTPException(status_code=400, detail="Missing X-User-ID header")
+
+    if not year:
+        year = str(datetime.now().year)
+    
+    if not quarter:
+        current_month = datetime.now().month
+        if current_month <= 3:
+            quarter = "Q1"
+        elif current_month <= 6:
+            quarter = "Q2"
+        elif current_month <= 9:
+            quarter = "Q3"
+        else:
+            quarter = "Q4"
+    else:
+        quarter = quarter.upper()
+
+    # Get data from storage
+    try:
+        data = user_vat_data.get(user_id, {}).get(year, {"invoices": []})
+        if not isinstance(data, dict) or "invoices" not in data:
+            data = {"invoices": []}
+    except:
+        data = {"invoices": []}
+    
+    # Get company details
+    company_details = get_user_company_details(user_id, storage_dict=user_company_details)
+    if company_details is None:
+        company_details = {}
+    
+    # Filter transactions by quarter
+    quarter_months = {
+        "Q1": ["Jan", "Feb", "Mar"],
+        "Q2": ["Apr", "May", "Jun"], 
+        "Q3": ["Jul", "Aug", "Sep"],
+        "Q4": ["Oct", "Nov", "Dec"]
+    }
+    
+    target_months = quarter_months.get(quarter, [])
+    
+    # Initialize category totals - using the new format codes
+    category_totals = {
+        "1a": {"net_amount": 0.0, "vat": 0.0},  # Standard rate (21%)
+        "1b": {"net_amount": 0.0, "vat": 0.0},  # Reduced rate (9%)
+        "1c": {"net_amount": 0.0, "vat": 0.0},  # Other rates (not 0%)
+        "1d": {"net_amount": 0.0, "vat": 0.0},  # Private use
+        "1e": {"net_amount": 0.0, "vat": 0.0},  # 0% or not taxed
+        "2a": {"net_amount": 0.0, "vat": 0.0},  # Reverse charge
+        "3a": {"net_amount": 0.0, "vat": 0.0},  # Exports (non-EU)
+        "3b": {"net_amount": 0.0, "vat": 0.0},  # EU supplies
+        "3c": {"net_amount": 0.0, "vat": 0.0},  # Installation/distance sales
+        "4a": {"net_amount": 0.0, "vat": 0.0},  # Purchases from non-EU
+        "4b": {"net_amount": 0.0, "vat": 0.0},  # Purchases from EU
+        "5a": {"net_amount": 0.0, "vat": 0.0},  # Domestic purchases with Dutch VAT
+        "5b": {"net_amount": 0.0, "vat": 0.0},  # Input VAT (deductible) - backward compatibility
+    }
+    
+    # Process invoices
+    invoices_processed = 0
+    invoices_skipped = 0
+    
+    for invoice in data.get("invoices", []):
+        dt = try_parse_date(invoice.get("date", ""))
+        if not dt: 
+            invoices_skipped += 1
+            continue
+        
+        month = dt.strftime("%b")
+        if month not in target_months: 
+            invoices_skipped += 1
+            continue
+        
+        invoices_processed += 1
+        transaction_type = invoice.get("transaction_type", "sale")
+        invoice_vat_total = normalize_amount(invoice.get("vat_amount", 0))
+        invoice_net_total = normalize_amount(invoice.get("subtotal", invoice.get("total_amount", 0)))
+        
+        # Process transactions
+        transactions_list = invoice.get("transactions", [])
+        if not transactions_list:
+            # If no transactions, create one from invoice-level data
+            # Try to get VAT percentage from invoice if available
+            invoice_vat_percentage = invoice.get("vat_percentage", "0")
+            if isinstance(invoice_vat_percentage, str):
+                invoice_vat_percentage = invoice_vat_percentage.replace("%", "").strip()
+            try:
+                invoice_vat_pct = float(invoice_vat_percentage)
+            except:
+                invoice_vat_pct = 0.0
+            
+            transactions_list = [{
+                "description": invoice.get("invoice_to", "N/A"),
+                "amount_pre_vat": invoice_net_total,
+                "vat_percentage": f"{invoice_vat_pct}%",
+                "vat_category": ""  # Will be determined from transaction type and VAT percentage
+            }]
+        
+        total_net = sum(normalize_amount(tx.get("amount_pre_vat", 0)) for tx in transactions_list)
+        if total_net == 0 and invoice_net_total != 0 and len(transactions_list) == 1:
+            total_net = invoice_net_total
+        
+        for tx in transactions_list:
+            vat_category = tx.get("vat_category", "")
+            tx_amount = normalize_amount(tx.get("amount_pre_vat", 0))
+            
+            if tx_amount != 0:
+                amount_pre_vat = tx_amount
+            elif invoice_net_total != 0:
+                if len(transactions_list) == 1:
+                    amount_pre_vat = invoice_net_total
+                    if total_net == 0:
+                        total_net = invoice_net_total
+                else:
+                    if total_net == 0:
+                        total_net = invoice_net_total
+                    amount_pre_vat = invoice_net_total / len(transactions_list)
+            else:
+                amount_pre_vat = 0.0
+            
+            vat_percentage_str = tx.get("vat_percentage", "0")
+            vat_percentage = float(vat_percentage_str.replace("%", "")) if isinstance(vat_percentage_str, str) else float(vat_percentage_str)
+            
+            # Calculate VAT amount
+            if invoice_vat_total != 0 and total_net != 0:
+                vat_amount = round((amount_pre_vat / total_net) * invoice_vat_total, 2)
+            elif invoice_vat_total != 0 and total_net == 0 and amount_pre_vat != 0:
+                vat_amount = invoice_vat_total
+            elif vat_percentage != 0:
+                vat_amount = round(amount_pre_vat * vat_percentage / 100, 2)
+            else:
+                vat_amount = 0.0
+            
+            # Use provided VAT Category (NL) Code directly - no remapping needed
+            # The category code is already provided in the correct format
+            target_code = vat_category
+            
+            # Only do remapping if category is empty or invalid (fallback for backward compatibility)
+            if not target_code or target_code not in category_totals:
+                # EU country codes for fallback mapping
+                eu_countries = ["DE", "FR", "BE", "IT", "ES", "PL", "RO", "NL", "GR", "PT", "CZ", "HU", 
+                               "SE", "AT", "BG", "DK", "FI", "IE", "HR", "LT", "LV", "SK", "SI", "EE", 
+                               "CY", "LU", "MT"]
+                
+                invoice_country = invoice.get("country", "").upper()
+                
+                if transaction_type == "sale":
+                    # Default mapping for sales based on VAT percentage
+                    if vat_percentage == 21:
+                        target_code = "1a"
+                    elif vat_percentage == 9:
+                        target_code = "1b"
+                    elif vat_percentage == 0:
+                        # Check country for 0% sales
+                        if invoice_country in eu_countries and invoice_country != "NL":
+                            target_code = "3b"
+                        elif invoice_country and invoice_country not in eu_countries:
+                            target_code = "3a"
+                        else:
+                            target_code = "1e"
+                    else:
+                        target_code = "1c"  # Other rates (not 0%, 9%, or 21%)
+                else:
+                    # Purchase - default mapping
+                    if "reverse" in str(vat_category).lower() or "reverse-charge" in str(vat_category).lower():
+                        target_code = "2a"
+                    elif "eu" in str(vat_category).lower() or invoice_country in eu_countries:
+                        target_code = "4b"
+                    elif "import" in str(vat_category).lower() or (invoice_country and invoice_country not in eu_countries):
+                        target_code = "4a"
+                    else:
+                        # Default to 5a for domestic purchases with VAT, 5b for backward compatibility
+                        if vat_amount > 0:
+                            target_code = "5a"
+                        else:
+                            target_code = "5b"
+            
+            # Add to totals
+            if target_code and target_code in category_totals:
+                category_totals[target_code]["net_amount"] += amount_pre_vat
+                category_totals[target_code]["vat"] += vat_amount
+    
+    # Calculate section 5 totals
+    # 5a: Turnover Tax (sum of sections 1-4 VAT)
+    vat_5a = (category_totals["1a"]["vat"] + category_totals["1b"]["vat"] + 
+              category_totals["1c"]["vat"] + category_totals["1d"]["vat"] + 
+              category_totals["1e"]["vat"] + category_totals["2a"]["vat"] + 
+              category_totals["3a"]["vat"] + category_totals["3b"]["vat"] + 
+              category_totals["3c"]["vat"])
+    
+    # 5b: Input Tax (deductible VAT) - includes both 5a and 5b for purchases
+    vat_5b = category_totals["5a"]["vat"] + category_totals["5b"]["vat"]
+    
+    # 5c: Subtotal (5a - 5b)
+    vat_5c = vat_5a - vat_5b
+    
+    # Total: Same as 5c (final VAT payable)
+    vat_total = vat_5c
+    
+    # Round all values
+    for code in category_totals:
+        category_totals[code]["net_amount"] = round(category_totals[code]["net_amount"], 2)
+        category_totals[code]["vat"] = round(category_totals[code]["vat"], 2)
+    
+    vat_5a = round(vat_5a, 2)
+    vat_5b = round(vat_5b, 2)
+    vat_5c = round(vat_5c, 2)
+    vat_total = round(vat_total, 2)
+    
+    # Build report structure
+    report_meta = {
+        "report_type": "VAT_Return",
+        "jurisdiction": "NL",
+        "company_name": company_details.get("company_name", "N/A") if company_details else "N/A",
+        "vat_number": company_details.get("company_vat", "N/A") if company_details else "N/A",
+        "period": f"{quarter} {year}",
+        "submission_date": datetime.now().strftime("%Y-%m-%d")
+    }
+    
+    sections = [
+        {
+            "id": "1",
+            "title": "Domestic Performance",
+            "rows": [
+                {
+                    "code": "1a",
+                    "description": "Supplies/services taxed at standard rate (High)",
+                    "net_amount": category_totals["1a"]["net_amount"],
+                    "vat": category_totals["1a"]["vat"]
+                },
+                {
+                    "code": "1b",
+                    "description": "Supplies/services taxed at reduced rate (Low)",
+                    "net_amount": category_totals["1b"]["net_amount"],
+                    "vat": category_totals["1b"]["vat"]
+                },
+                {
+                    "code": "1c",
+                    "description": "Supplies/services taxed at other rates, except 0%",
+                    "net_amount": category_totals["1c"]["net_amount"],
+                    "vat": category_totals["1c"]["vat"]
+                },
+                {
+                    "code": "1d",
+                    "description": "Private use",
+                    "net_amount": category_totals["1d"]["net_amount"],
+                    "vat": category_totals["1d"]["vat"]
+                },
+                {
+                    "code": "1e",
+                    "description": "Supplies/services taxed at 0% or not taxed",
+                    "net_amount": category_totals["1e"]["net_amount"],
+                    "vat": category_totals["1e"]["vat"]
+                }
+            ]
+        },
+        {
+            "id": "2",
+            "title": "Domestic Reverse Charge Schemes",
+            "rows": [
+                {
+                    "code": "2a",
+                    "description": "Supplies/services where VAT liability is shifted to you",
+                    "net_amount": category_totals["2a"]["net_amount"],
+                    "vat": category_totals["2a"]["vat"]
+                }
+            ]
+        },
+        {
+            "id": "3",
+            "title": "Performance to or in Foreign Countries",
+            "rows": [
+                {
+                    "code": "3a",
+                    "description": "Supplies to countries outside the EU (Exports)",
+                    "net_amount": category_totals["3a"]["net_amount"],
+                    "vat": category_totals["3a"]["vat"]
+                },
+                {
+                    "code": "3b",
+                    "description": "Supplies to/in countries within the EU",
+                    "net_amount": category_totals["3b"]["net_amount"],
+                    "vat": category_totals["3b"]["vat"]
+                },
+                {
+                    "code": "3c",
+                    "description": "Installation/distance sales within the EU",
+                    "net_amount": category_totals["3c"]["net_amount"],
+                    "vat": category_totals["3c"]["vat"]
+                }
+            ]
+        },
+        {
+            "id": "4",
+            "title": "Performance from Abroad to You",
+            "rows": [
+                {
+                    "code": "4a",
+                    "description": "Supplies/services from countries outside the EU",
+                    "net_amount": category_totals["4a"]["net_amount"],
+                    "vat": category_totals["4a"]["vat"]
+                },
+                {
+                    "code": "4b",
+                    "description": "Supplies/services from countries within the EU",
+                    "net_amount": category_totals["4b"]["net_amount"],
+                    "vat": category_totals["4b"]["vat"]
+                }
+            ]
+        },
+        {
+            "id": "5",
+            "title": "Totals",
+            "rows": [
+                {
+                    "code": "5a",
+                    "description": "Turnover Tax (Subtotal sections 1 to 4)",
+                    "net_amount": None,
+                    "vat": vat_5a
+                },
+                {
+                    "code": "5b",
+                    "description": "Input Tax (Deductible VAT)",
+                    "net_amount": None,
+                    "vat": vat_5b
+                },
+                {
+                    "code": "5c",
+                    "description": "Subtotal (5a minus 5b)",
+                    "net_amount": None,
+                    "vat": vat_5c
+                },
+                {
+                    "code": "5d",
+                    "description": "Reduction according to small business scheme (KOR)",
+                    "net_amount": None,
+                    "vat": 0.00
+                },
+                {
+                    "code": "5e",
+                    "description": "Estimate previous return",
+                    "net_amount": None,
+                    "vat": 0.00
+                },
+                {
+                    "code": "5f",
+                    "description": "Estimate",
+                    "net_amount": None,
+                    "vat": 0.00
+                },
+                {
+                    "code": "Total",
+                    "description": "Total to Pay / Reclaim",
+                    "net_amount": None,
+                    "vat": vat_total
+                }
+            ]
+        }
+    ]
+    
+    # Debug info (can be removed in production)
+    debug_info = {
+        "total_invoices_in_year": len(data.get("invoices", [])),
+        "invoices_in_quarter": invoices_processed,
+        "invoices_skipped": invoices_skipped,
+        "target_months": target_months,
+        "quarter_requested": quarter,
+        "year_requested": year
+    }
+    
+    return {
+        "report_meta": report_meta,
+        "sections": sections,
+        "_debug": debug_info  # Remove this in production if not needed
     }
 
 @app.get("/health")

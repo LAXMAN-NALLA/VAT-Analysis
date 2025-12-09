@@ -8,9 +8,7 @@ services:
       - key: PYTHON_VERSION
         value: 3.10.0
       - key: OPENAI_API_KEY
-        sync: false  # Set this in Render dashboard
-      - key: PORT
-        value: 10000
+        sync: false  # Set this manually in Render dashboard if using OpenAI features
       - key: ENVIRONMENT
         value: production
 

@@ -1,0 +1,323 @@
+{
+  "report_meta": {
+    "report_type": "VAT_Return",
+    "jurisdiction": "NL",
+    "company_name": "N/A",
+    "vat_number": "N/A",
+    "period": "Q1 2025",
+    "submission_date": "2025-12-09"
+  },
+  "sections": [
+    {
+      "id": "1",
+      "title": "Domestic Performance",
+      "rows": [
+        {
+          "code": "1a",
+          "description": "Supplies/services taxed at standard rate (High)",
+          "net_amount": 1000,
+          "vat": 210
+        },
+        {
+          "code": "1b",
+          "description": "Supplies/services taxed at reduced rate (Low)",
+          "net_amount": 500,
+          "vat": 45
+        },
+        {
+          "code": "1c",
+          "description": "Supplies/services taxed at other rates, except 0%",
+          "net_amount": 0,
+          "vat": 0
+        },
+        {
+          "code": "1d",
+          "description": "Private use",
+          "net_amount": 0,
+          "vat": 0
+        },
+        {
+          "code": "1e",
+          "description": "Supplies/services taxed at 0% or not taxed",
+          "net_amount": 6500,
+          "vat": 0
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "title": "Domestic Reverse Charge Schemes",
+      "rows": [
+        {
+          "code": "2a",
+          "description": "Supplies/services where VAT liability is shifted to you",
+          "net_amount": 0,
+          "vat": 0
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "title": "Performance to or in Foreign Countries",
+      "rows": [
+        {
+          "code": "3a",
+          "description": "Supplies to countries outside the EU (Exports)",
+          "net_amount": 0,
+          "vat": 0
+        },
+        {
+          "code": "3b",
+          "description": "Supplies to/in countries within the EU",
+          "net_amount": 11500,
+          "vat": 0
+        },
+        {
+          "code": "3c",
+          "description": "Installation/distance sales within the EU",
+          "net_amount": 0,
+          "vat": 0
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "title": "Performance from Abroad to You",
+      "rows": [
+        {
+          "code": "4a",
+          "description": "Supplies/services from countries outside the EU",
+          "net_amount": 0,
+          "vat": 0
+        },
+        {
+          "code": "4b",
+          "description": "Supplies/services from countries within the EU",
+          "net_amount": 15300,
+          "vat": 510
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "title": "Totals",
+      "rows": [
+        {
+          "code": "5a",
+          "description": "Turnover Tax (Subtotal sections 1 to 4)",
+          "net_amount": null,
+          "vat": 255
+        },
+        {
+          "code": "5b",
+          "description": "Input Tax (Deductible VAT)",
+          "net_amount": null,
+          "vat": 0
+        },
+        {
+          "code": "5c",
+          "description": "Subtotal (5a minus 5b)",
+          "net_amount": null,
+          "vat": 255
+        },
+        {
+          "code": "5d",
+          "description": "Reduction according to small business scheme (KOR)",
+          "net_amount": null,
+          "vat": 0
+        },
+        {
+          "code": "5e",
+          "description": "Estimate previous return",
+          "net_amount": null,
+          "vat": 0
+        },
+        {
+          "code": "5f",
+          "description": "Estimate",
+          "net_amount": null,
+          "vat": 0
+        },
+        {
+          "code": "Total",
+          "description": "Total to Pay / Reclaim",
+          "net_amount": null,
+          "vat": 255
+        }
+      ]
+    }
+  ],
+  "_debug": {
+    "total_invoices_in_year": 20,
+    "invoices_in_quarter": 13,
+    "invoices_skipped": 7,
+    "target_months": [
+      "Jan",
+      "Feb",
+      "Mar"
+    ],
+    "quarter_requested": "Q1",
+    "year_requested": "2025"
+  }
+}{
+  "report_meta": {
+    "report_type": "VAT_Return",
+    "jurisdiction": "NL",
+    "company_name": "N/A",
+    "vat_number": "N/A",
+    "period": "Q1 2025",
+    "submission_date": "2025-12-09"
+  },
+  "sections": [
+    {
+      "id": "1",
+      "title": "Domestic Performance",
+      "rows": [
+        {
+          "code": "1a",
+          "description": "Supplies/services taxed at standard rate (High)",
+          "net_amount": 1000,
+          "vat": 210
+        },
+        {
+          "code": "1b",
+          "description": "Supplies/services taxed at reduced rate (Low)",
+          "net_amount": 500,
+          "vat": 45
+        },
+        {
+          "code": "1c",
+          "description": "Supplies/services taxed at other rates, except 0%",
+          "net_amount": 0,
+          "vat": 0
+        },
+        {
+          "code": "1d",
+          "description": "Private use",
+          "net_amount": 0,
+          "vat": 0
+        },
+        {
+          "code": "1e",
+          "description": "Supplies/services taxed at 0% or not taxed",
+          "net_amount": 6500,
+          "vat": 0
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "title": "Domestic Reverse Charge Schemes",
+      "rows": [
+        {
+          "code": "2a",
+          "description": "Supplies/services where VAT liability is shifted to you",
+          "net_amount": 0,
+          "vat": 0
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "title": "Performance to or in Foreign Countries",
+      "rows": [
+        {
+          "code": "3a",
+          "description": "Supplies to countries outside the EU (Exports)",
+          "net_amount": 0,
+          "vat": 0
+        },
+        {
+          "code": "3b",
+          "description": "Supplies to/in countries within the EU",
+          "net_amount": 11500,
+          "vat": 0
+        },
+        {
+          "code": "3c",
+          "description": "Installation/distance sales within the EU",
+          "net_amount": 0,
+          "vat": 0
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "title": "Performance from Abroad to You",
+      "rows": [
+        {
+          "code": "4a",
+          "description": "Supplies/services from countries outside the EU",
+          "net_amount": 0,
+          "vat": 0
+        },
+        {
+          "code": "4b",
+          "description": "Supplies/services from countries within the EU",
+          "net_amount": 15300,
+          "vat": 510
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "title": "Totals",
+      "rows": [
+        {
+          "code": "5a",
+          "description": "Turnover Tax (Subtotal sections 1 to 4)",
+          "net_amount": null,
+          "vat": 255
+        },
+        {
+          "code": "5b",
+          "description": "Input Tax (Deductible VAT)",
+          "net_amount": null,
+          "vat": 0
+        },
+        {
+          "code": "5c",
+          "description": "Subtotal (5a minus 5b)",
+          "net_amount": null,
+          "vat": 255
+        },
+        {
+          "code": "5d",
+          "description": "Reduction according to small business scheme (KOR)",
+          "net_amount": null,
+          "vat": 0
+        },
+        {
+          "code": "5e",
+          "description": "Estimate previous return",
+          "net_amount": null,
+          "vat": 0
+        },
+        {
+          "code": "5f",
+          "description": "Estimate",
+          "net_amount": null,
+          "vat": 0
+        },
+        {
+          "code": "Total",
+          "description": "Total to Pay / Reclaim",
+          "net_amount": null,
+          "vat": 255
+        }
+      ]
+    }
+  ],
+  "_debug": {
+    "total_invoices_in_year": 20,
+    "invoices_in_quarter": 13,
+    "invoices_skipped": 7,
+    "target_months": [
+      "Jan",
+      "Feb",
+      "Mar"
+    ],
+    "quarter_requested": "Q1",
+    "year_requested": "2025"
+  }
+}
